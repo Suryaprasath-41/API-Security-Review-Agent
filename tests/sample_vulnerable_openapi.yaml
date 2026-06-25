@@ -1,0 +1,127 @@
+openapi: 3.0.0
+info:
+  title: Vulnerable E-Commerce API
+  description: A sample API containing intentional security flaws for testing the API Security Review Agent.
+  version: 1.0.0
+servers:
+  - url: http://api.vulnerableapp.local/v1
+    description: Development Server (HTTP protocol error)
+
+# Global security is empty (Missing Authentication)
+security: []
+
+paths:
+  /users:
+    get:
+      summary: Retrieve all user records
+      description: Returns list of user entities. Exposed to anyone due to lack of security definitions.
+      responses:
+        "200":
+          description: Successful retrieval
+          headers:
+            Server:
+              schema:
+                type: string
+              example: Apache/2.4.41 (Ubuntu)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    username:
+                      type: string
+                    password:
+                      type: string
+                      description: EXPOSES PASSWORD PLAIN TEXT (Excessive data exposure)
+                    ssn:
+                      type: string
+                      description: EXPOSES SSN (Excessive data exposure)
+
+  /users/{id}:
+    get:
+      summary: Retrieve single user profile by sequential database index (BOLA/IDOR risk)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Return single profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  username:
+                    type: string
+
+  /admin/deleteUser/{id}:
+    delete:
+      summary: Destructive deletion action (Unrestricted DELETE risk)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User deleted successfully
+
+  /search:
+    get:
+      summary: Search index parameters
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            # Lacks pattern/minLength constraints (SQL Injection Risk)
+        - name: token
+          in: query
+          required: false
+          schema:
+            type: string
+            # Sensitive parameter exposed in query string
+      responses:
+        "200":
+          description: Search results
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+                default: "*"
+              description: Wildcard CORS configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: string
+
+  /users/avatar:
+    post:
+      summary: Upload user profile photo
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  # Missing size limits (x-max-file-size)
+      responses:
+        "200":
+          description: Upload confirmation
